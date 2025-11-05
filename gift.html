@@ -13,7 +13,9 @@
     const params = new URLSearchParams(window.location.search);
     const username = params.get("user");
     const content = document.getElementById("content");
-    const corsProxy = "https://corsproxy.io/?";
+
+  
+    const corsProxy = "https://api.allorigins.win/raw?url=";
 
     if (!username) {
       content.innerHTML = "<p>❌ No username provided. <a href='index.html'>Go back</a></p>";
@@ -23,7 +25,7 @@
     content.innerHTML = `<p>🔍 Searching for <b>${username}</b>...</p>`;
 
     try {
-      // Fetch user ID from username (via proxy)
+      // Fetch user info by username
       const userRes = await fetch(corsProxy + encodeURIComponent("https://users.roblox.com/v1/usernames/users"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,11 +42,11 @@
       const displayName = user.displayName || user.name;
       const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
 
-      // Fetch clothing (via proxy)
+      // Fetch clothing
       const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`));
       const clothing = await clothingRes.json();
 
-      // Fetch user's games to get their gamepasses (via proxy)
+      // Fetch games for gamepasses
       const passesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=5`));
       const gamesData = await passesRes.json();
       let passesList = [];
@@ -62,7 +64,6 @@
         }
       }
 
-      // Helper function to fetch price
       async function getItemPrice(assetId) {
         try {
           const res = await fetch(corsProxy + encodeURIComponent(`https://economy.roblox.com/v2/assets/${assetId}/details`));
@@ -82,7 +83,6 @@
         </div>
       `;
 
-      // Gamepasses section
       html += "<h2>🎟️ Gamepasses</h2>";
       if (passesList.length > 0) {
         html += `<div class="items">`;
@@ -102,7 +102,6 @@
         html += "<p>No gamepasses found.</p>";
       }
 
-      // Clothing section
       html += "<h2>👕 Clothing</h2>";
       if (clothing.data && clothing.data.length) {
         html += `<div class="items">`;
@@ -128,7 +127,7 @@
 
     } catch (err) {
       console.error(err);
-      content.innerHTML = `<p>⚠️ Error loading user data. Please try again later.</p>`;
+      content.innerHTML = `<p>⚠️ Failed to fetch data. Please try again later.</p>`;
     }
   }
 
