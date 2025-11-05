@@ -6,17 +6,21 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Gift Robux</h1>
-  <p>Enter the username of the player you want to gift:</p>
-  <input id="username" placeholder="Roblox username">
-  <button id="submit">Continue →</button>
+  <div class="container">
+    <h1>Poppy's Gifting Portal 💸</h1>
+    <p>Enter the username of the player you want to gift:</p>
+
+    <div class="card">
+      <input id="username" placeholder="Roblox username">
+      <button id="submit">Continue →</button>
+    </div>
+  </div>
 
   <script>
   document.getElementById("submit").addEventListener("click", () => {
-      const username = document.getElementById("username").value.trim();
-      if (username) {
-          window.location.href = `gift.html?user=${encodeURIComponent(username)}`;
-      }
+    const username = document.getElementById("username").value.trim();
+    if (!username) return alert("Please enter a username.");
+    window.location.href = `gift.html?user=${encodeURIComponent(username)}`;
   });
   </script>
 </body>
