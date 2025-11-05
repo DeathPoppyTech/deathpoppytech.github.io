@@ -13,6 +13,7 @@
     const params = new URLSearchParams(window.location.search);
     const username = params.get("user");
     const content = document.getElementById("content");
+    const corsProxy = "https://corsproxy.io/?";
 
     if (!username) {
       content.innerHTML = "<p>❌ No username provided. <a href='index.html'>Go back</a></p>";
@@ -22,8 +23,8 @@
     content.innerHTML = `<p>🔍 Searching for <b>${username}</b>...</p>`;
 
     try {
-      // Fetch user ID from username
-      const userRes = await fetch("https://users.roblox.com/v1/usernames/users", {
+      // Fetch user ID from username (via proxy)
+      const userRes = await fetch(corsProxy + encodeURIComponent("https://users.roblox.com/v1/usernames/users"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usernames: [username] })
@@ -39,17 +40,17 @@
       const displayName = user.displayName || user.name;
       const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
 
-      // Fetch clothing
-      const clothingRes = await fetch(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`);
+      // Fetch clothing (via proxy)
+      const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`));
       const clothing = await clothingRes.json();
 
-      // Fetch games to get gamepasses
-      const passesRes = await fetch(`https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=5`);
+      // Fetch user's games to get their gamepasses (via proxy)
+      const passesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=5`));
       const gamesData = await passesRes.json();
       let passesList = [];
 
       for (const game of gamesData.data || []) {
-        const gamePassRes = await fetch(`https://games.roblox.com/v1/games/${game.id}/game-passes?limit=25`);
+        const gamePassRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v1/games/${game.id}/game-passes?limit=25`));
         const gamePassData = await gamePassRes.json();
         if (gamePassData.data && gamePassData.data.length > 0) {
           passesList.push(...gamePassData.data.map(p => ({
@@ -61,10 +62,10 @@
         }
       }
 
-      // Helper function to fetch price from Marketplace API
+      // Helper function to fetch price
       async function getItemPrice(assetId) {
         try {
-          const res = await fetch(`https://economy.roblox.com/v2/assets/${assetId}/details`);
+          const res = await fetch(corsProxy + encodeURIComponent(`https://economy.roblox.com/v2/assets/${assetId}/details`));
           const data = await res.json();
           return data.PriceInRobux ?? null;
         } catch {
@@ -127,7 +128,7 @@
 
     } catch (err) {
       console.error(err);
-      content.innerHTML = `<p>⚠️ Failed to fetch data. Roblox API may be blocking requests.</p>`;
+      content.innerHTML = `<p>⚠️ Error loading user data. Please try again later.</p>`;
     }
   }
 
