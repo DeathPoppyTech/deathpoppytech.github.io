@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gift User</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -13,8 +14,6 @@
     const params = new URLSearchParams(window.location.search);
     const username = params.get("user");
     const content = document.getElementById("content");
-
-  
     const corsProxy = "https://api.allorigins.win/raw?url=";
 
     if (!username) {
@@ -25,7 +24,7 @@
     content.innerHTML = `<p>🔍 Searching for <b>${username}</b>...</p>`;
 
     try {
-      // Fetch user info by username
+      // Fetch user info
       const userRes = await fetch(corsProxy + encodeURIComponent("https://users.roblox.com/v1/usernames/users"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,27 +41,13 @@
       const displayName = user.displayName || user.name;
       const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
 
-      // Fetch clothing
-      const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`));
+      // Fetch clothing using the newer Creator Marketplace endpoint
+      const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://catalog.roblox.com/v1/search/items/details?CreatorTargetId=${userId}&Limit=30&Category=3`));
       const clothing = await clothingRes.json();
 
-      // Fetch games for gamepasses
-      const passesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=5`));
-      const gamesData = await passesRes.json();
-      let passesList = [];
-
-      for (const game of gamesData.data || []) {
-        const gamePassRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v1/games/${game.id}/game-passes?limit=25`));
-        const gamePassData = await gamePassRes.json();
-        if (gamePassData.data && gamePassData.data.length > 0) {
-          passesList.push(...gamePassData.data.map(p => ({
-            name: p.name,
-            id: p.id,
-            image: `https://www.roblox.com/asset-thumbnail/image?assetId=${p.id}&width=150&height=150&format=png`,
-            link: `https://www.roblox.com/game-pass/${p.id}`
-          })));
-        }
-      }
+      // Fetch gamepasses (directly from inventory API)
+      const passesRes = await fetch(corsProxy + encodeURIComponent(`https://inventory.roblox.com/v1/users/${userId}/assets/34?limit=30`));
+      const passes = await passesRes.json();
 
       async function getItemPrice(assetId) {
         try {
@@ -76,24 +61,25 @@
 
       let html = `
         <div class="profile">
-          <img src="${avatar}" width="180" height="180" alt="Avatar">
+          <img src="${avatar}" width="120" height="120" alt="Avatar">
           <h1>${displayName} (@${user.name})</h1>
           <p>User ID: ${userId}</p>
           <a href="index.html" class="back">← Search another user</a>
         </div>
       `;
 
+      // Gamepasses section
       html += "<h2>🎟️ Gamepasses</h2>";
-      if (passesList.length > 0) {
+      if (passes.data && passes.data.length > 0) {
         html += `<div class="items">`;
-        for (const p of passesList) {
-          const price = await getItemPrice(p.id);
+        for (const p of passes.data) {
+          const price = await getItemPrice(p.assetId);
           html += `
             <div class="item">
-              <img src="${p.image}" alt="${p.name}">
+              <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${p.assetId}&width=150&height=150&format=png" alt="${p.name}">
               <p>${p.name}</p>
               <p class="price">${price ? `${price} Robux` : "Free"}</p>
-              <a href="${p.link}" target="_blank"><button>Buy</button></a>
+              <a href="https://www.roblox.com/game-pass/${p.assetId}" target="_blank"><button>Buy</button></a>
             </div>
           `;
         }
@@ -102,6 +88,7 @@
         html += "<p>No gamepasses found.</p>";
       }
 
+      // Clothing section
       html += "<h2>👕 Clothing</h2>";
       if (clothing.data && clothing.data.length) {
         html += `<div class="items">`;
