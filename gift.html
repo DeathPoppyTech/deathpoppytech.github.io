@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Gift User</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="content">Loading...</div>
+  <script>
+  async function main() {
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get("user");
+    const content = document.getElementById("content");
+
+    if (!username) {
+      content.innerHTML = "<p>❌ No username provided. <a href='index.html'>Go back</a></p>";
+      return;
+    }
+
+    content.innerHTML = `<p>Searching for <b>${username}</b>...</p>`;
+
+    
+    const userRes = await fetch(`https://api.roblox.com/users/get-by-username?username=${username}`);
+    const userData = await userRes.json();
+    if (!userData.Id) {
+      content.innerHTML = "<p>❌ User not found. <a href='index.html'>Try again</a></p>";
+      return;
+    }
+    const userId = userData.Id;
+
+    
+    const infoRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+    const info = await infoRes.json();
+
+    const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
+
+    const clothingRes = await fetch(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`);
+    const clothing = await clothingRes.json();
+
+    let html = `
+      <h1>${info.displayName} (@${info.name})</h1>
+      <img src="${avatar}" width="180" height="180"><br>
+      <p>User ID: ${userId}</p>
+      <a href="index.html">← Search another user</a>
+      <h2>Buy Passes</h2>
+      <div class="items">
+    `;
+
+    if (clothing.data && clothing.data.length) {
+      for (const item of clothing.data) {
+        html += `
+          <div class="item">
+            <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${item.id}&width=150&height=150&format=png">
+            <p>${item.name}</p>
+            <a href="https://www.roblox.com/catalog/${item.id}" target="_blank">
+              <button>Buy</button>
+            </a>
+          </div>
+        `;
+      }
+    } else {
+      html += "<p>No clothing or passes found.</p>";
+    }
+
+    html += "</div>";
+    content.innerHTML = html;
+  }
+
+  main();
+  </script>
+</body>
+</html>
