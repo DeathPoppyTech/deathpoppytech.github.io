@@ -2,90 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gift User</title>
-<style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #f2f2f2;
-  margin: 0;
-  padding: 0;
-}
-.container {
-  max-width: 600px;
-  margin: 20px auto;
-  background: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-.profile {
-  text-align: center;
-}
-.profile img {
-  border-radius: 50%;
-  margin-bottom: 10px;
-}
-.items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
-}
-.item {
-  background: #fafafa;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 8px;
-  text-align: center;
-}
-.item img {
-  width: 100%;
-  border-radius: 6px;
-}
-.item .price {
-  font-weight: 600;
-  color: #555;
-}
-button {
-  background: #00a2ff;
-  color: white;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-button:hover {
-  background: #008be0;
-}
-.back {
-  display: inline-block;
-  margin-top: 10px;
-  color: #00a2ff;
-  text-decoration: none;
-}
-.back:hover {
-  text-decoration: underline;
-}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="content" class="container">Loading...</div>
 <script>
 async function main() {
-  const params = new URLSearchParams(location.search);
+  const corsProxy = "https://api.allorigins.win/raw?url=";
+  const params = new URLSearchParams(window.location.search);
   const username = params.get("user");
   const content = document.getElementById("content");
-  const proxy = "https://corsproxy.io/?";
-
   if (!username) {
     content.innerHTML = "<p>❌ No username provided. <a href='index.html'>Go back</a></p>";
     return;
   }
-
   content.innerHTML = `<p>🔍 Searching for <b>${username}</b>...</p>`;
-
   try {
-    const userRes = await fetch(proxy + encodeURIComponent("https://users.roblox.com/v1/usernames/users"), {
+    const userRes = await fetch(corsProxy + encodeURIComponent("https://users.roblox.com/v1/usernames/users"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ usernames: [username] })
@@ -96,89 +31,56 @@ async function main() {
       content.innerHTML = "<p>❌ User not found. <a href='index.html'>Try again</a></p>";
       return;
     }
-
     const userId = user.id;
     const displayName = user.displayName || user.name;
     const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
-
-    const clothingRes = await fetch(proxy + encodeURIComponent(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=10`));
+    const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://catalog.roblox.com/v2/search/items/details?Category=Clothing&CreatorTargetId=${userId}&Limit=30`));
     const clothing = await clothingRes.json();
-
-    const gamesRes = await fetch(proxy + encodeURIComponent(`https://games.roblox.com/v2/users/${userId}/games?limit=5`));
-    const gamesData = await gamesRes.json();
-    let passesList = [];
-
-    for (const game of gamesData.data || []) {
-      const passRes = await fetch(proxy + encodeURIComponent(`https://games.roblox.com/v1/games/${game.id}/game-passes?limit=10`));
-      const passData = await passRes.json();
-      if (passData.data && passData.data.length) {
-        passesList.push(...passData.data.map(p => ({
-          name: p.name,
-          id: p.id,
-          image: `https://www.roblox.com/asset-thumbnail/image?assetId=${p.id}&width=150&height=150&format=png`,
-          link: `https://www.roblox.com/game-pass/${p.id}`
-        })));
-      }
+    const gamesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v2/users/${userId}/games?SortOrder=Asc&Limit=5`));
+    const games = await gamesRes.json();
+    let passes = [];
+    for (const game of games.data || []) {
+      const passesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v2/games/${game.id}/game-passes?Limit=25`));
+      const passData = await passesRes.json();
+      if (passData.data?.length) passes.push(...passData.data);
     }
-
-    async function getItemPrice(assetId) {
-      try {
-        const res = await fetch(proxy + encodeURIComponent(`https://economy.roblox.com/v2/assets/${assetId}/details`));
-        const data = await res.json();
-        return data.PriceInRobux ?? null;
-      } catch {
-        return null;
-      }
-    }
-
     let html = `
       <div class="profile">
-        <img src="${avatar}" width="180" height="180">
+        <img src="${avatar}" width="120" height="120">
         <h1>${displayName} (@${user.name})</h1>
         <p>User ID: ${userId}</p>
         <a href="index.html" class="back">← Search another user</a>
       </div>
+      <h2>🎟️ Gamepasses</h2>
+      <div class="items">
     `;
-
-    html += "<h2>🎟️ Gamepasses</h2>";
-    if (passesList.length > 0) {
-      html += `<div class="items">`;
-      for (const p of passesList) {
-        const price = await getItemPrice(p.id);
+    if (passes.length) {
+      for (const p of passes) {
         html += `
           <div class="item">
-            <img src="${p.image}">
+            <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${p.id}&width=150&height=150&format=png">
             <p>${p.name}</p>
-            <p class="price">${price ? price + " Robux" : "Free"}</p>
-            <a href="${p.link}" target="_blank"><button>Buy</button></a>
+            <a href="https://www.roblox.com/game-pass/${p.id}" target="_blank"><button>Buy</button></a>
           </div>
         `;
       }
-      html += `</div>`;
     } else html += "<p>No gamepasses found.</p>";
-
-    html += "<h2>👕 Clothing</h2>";
-    if (clothing.data && clothing.data.length) {
-      html += `<div class="items">`;
+    html += "</div><h2>👕 Clothing</h2><div class='items'>";
+    if (clothing.data?.length) {
       for (const item of clothing.data) {
-        const price = await getItemPrice(item.id);
         html += `
           <div class="item">
             <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${item.id}&width=150&height=150&format=png">
             <p>${item.name}</p>
-            <p class="price">${price ? price + " Robux" : "Free"}</p>
-            <a href="https://www.roblox.com/catalog/${item.id}" target="_blank">
-              <button>Buy</button>
-            </a>
+            <a href="https://www.roblox.com/catalog/${item.id}" target="_blank"><button>Buy</button></a>
           </div>
         `;
       }
-      html += `</div>`;
     } else html += "<p>No clothing found.</p>";
-
+    html += "</div>";
     content.innerHTML = html;
-  } catch {
-    content.innerHTML = `<p>⚠️ Failed to fetch data. Roblox API may be blocking requests.</p>`;
+  } catch (e) {
+    content.innerHTML = `<p>⚠️ Failed to load data. Please try again later.</p>`;
   }
 }
 main();
