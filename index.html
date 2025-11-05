@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Poppy's Gifting Portal</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Gift Robux</h1>
+  <p>Enter the username of the player you want to gift:</p>
+  <input id="username" placeholder="Roblox username">
+  <button id="submit">Continue →</button>
+
+  <script>
+  document.getElementById("submit").addEventListener("click", () => {
+      const username = document.getElementById("username").value.trim();
+      if (username) {
+          window.location.href = `gift.html?user=${encodeURIComponent(username)}`;
+      }
+  });
+  </script>
+</body>
+</html>
