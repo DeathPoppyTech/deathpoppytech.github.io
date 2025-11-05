@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container" id="content">Loading...</div>
+  <div id="content" class="container">Loading...</div>
 
   <script>
   async function main() {
@@ -19,60 +19,115 @@
       return;
     }
 
-    content.innerHTML = `<div class='card'><p>Searching for <b>${username}</b>...</p></div>`;
+    content.innerHTML = `<p>🔍 Searching for <b>${username}</b>...</p>`;
 
     try {
-      const userRes = await fetch(`https://api.roblox.com/users/get-by-username?username=${username}`);
+      // Fetch user ID from username
+      const userRes = await fetch("https://users.roblox.com/v1/usernames/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [username] })
+      });
       const userData = await userRes.json();
-
-      if (!userData.Id) {
+      const user = userData.data?.[0];
+      if (!user) {
         content.innerHTML = "<p>❌ User not found. <a href='index.html'>Try again</a></p>";
         return;
       }
 
-      const userId = userData.Id;
-      const infoRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
-      const info = await infoRes.json();
+      const userId = user.id;
+      const displayName = user.displayName || user.name;
       const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
 
-      const clothingRes = await fetch(
-        `https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`
-      );
+      // Fetch clothing
+      const clothingRes = await fetch(`https://catalog.roblox.com/v1/search/items?category=Clothing&creatorTargetId=${userId}&salesTypeFilter=1&limit=30`);
       const clothing = await clothingRes.json();
+
+      // Fetch games to get gamepasses
+      const passesRes = await fetch(`https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=5`);
+      const gamesData = await passesRes.json();
+      let passesList = [];
+
+      for (const game of gamesData.data || []) {
+        const gamePassRes = await fetch(`https://games.roblox.com/v1/games/${game.id}/game-passes?limit=25`);
+        const gamePassData = await gamePassRes.json();
+        if (gamePassData.data && gamePassData.data.length > 0) {
+          passesList.push(...gamePassData.data.map(p => ({
+            name: p.name,
+            id: p.id,
+            image: `https://www.roblox.com/asset-thumbnail/image?assetId=${p.id}&width=150&height=150&format=png`,
+            link: `https://www.roblox.com/game-pass/${p.id}`
+          })));
+        }
+      }
+
+      // Helper function to fetch price from Marketplace API
+      async function getItemPrice(assetId) {
+        try {
+          const res = await fetch(`https://economy.roblox.com/v2/assets/${assetId}/details`);
+          const data = await res.json();
+          return data.PriceInRobux ?? null;
+        } catch {
+          return null;
+        }
+      }
 
       let html = `
         <div class="profile">
-          <img src="${avatar}" class="avatar">
-          <h2>${info.displayName} (@${info.name})</h2>
+          <img src="${avatar}" width="180" height="180" alt="Avatar">
+          <h1>${displayName} (@${user.name})</h1>
           <p>User ID: ${userId}</p>
-          <a href="index.html" class="back">← Back</a>
+          <a href="index.html" class="back">← Search another user</a>
         </div>
-        <h2>🛍️ Game Passes & Clothing</h2>
-        <div class="items">
       `;
 
-      if (clothing.data && clothing.data.length) {
-        for (const item of clothing.data) {
+      // Gamepasses section
+      html += "<h2>🎟️ Gamepasses</h2>";
+      if (passesList.length > 0) {
+        html += `<div class="items">`;
+        for (const p of passesList) {
+          const price = await getItemPrice(p.id);
           html += `
             <div class="item">
-              <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${item.id}&width=150&height=150&format=png">
+              <img src="${p.image}" alt="${p.name}">
+              <p>${p.name}</p>
+              <p class="price">${price ? `${price} Robux` : "Free"}</p>
+              <a href="${p.link}" target="_blank"><button>Buy</button></a>
+            </div>
+          `;
+        }
+        html += `</div>`;
+      } else {
+        html += "<p>No gamepasses found.</p>";
+      }
+
+      // Clothing section
+      html += "<h2>👕 Clothing</h2>";
+      if (clothing.data && clothing.data.length) {
+        html += `<div class="items">`;
+        for (const item of clothing.data) {
+          const price = await getItemPrice(item.id);
+          html += `
+            <div class="item">
+              <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${item.id}&width=150&height=150&format=png" alt="${item.name}">
               <p>${item.name}</p>
+              <p class="price">${price ? `${price} Robux` : "Free"}</p>
               <a href="https://www.roblox.com/catalog/${item.id}" target="_blank">
                 <button>Buy</button>
               </a>
             </div>
           `;
         }
+        html += `</div>`;
       } else {
-        html += "<p>No clothing or passes found for this user.</p>";
+        html += "<p>No clothing found.</p>";
       }
 
-      html += "</div>";
       content.innerHTML = html;
 
     } catch (err) {
       console.error(err);
-      content.innerHTML = "<p>⚠️ Error loading user data. Please try again.</p>";
+      content.innerHTML = `<p>⚠️ Failed to fetch data. Roblox API may be blocking requests.</p>`;
     }
   }
 
