@@ -20,7 +20,7 @@ async function main() {
   }
   content.innerHTML = `<p>🔍 Searching for <b>${username}</b>...</p>`;
   try {
-    const userRes = await fetch(corsProxy + encodeURIComponent("https://users.roblox.com/v1/usernames/users"), {
+    const userRes = await fetch("https://users.roblox.com/v1/usernames/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ usernames: [username] })
@@ -34,16 +34,10 @@ async function main() {
     const userId = user.id;
     const displayName = user.displayName || user.name;
     const avatar = `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=180&height=180&format=png`;
-    const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://catalog.roblox.com/v2/search/items/details?Category=Clothing&CreatorTargetId=${userId}&Limit=30`));
+    const clothingRes = await fetch(corsProxy + encodeURIComponent(`https://www.roblox.com/users/inventory/list-json?userId=${userId}&assetTypeId=11`));
     const clothing = await clothingRes.json();
-    const gamesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v2/users/${userId}/games?SortOrder=Asc&Limit=5`));
-    const games = await gamesRes.json();
-    let passes = [];
-    for (const game of games.data || []) {
-      const passesRes = await fetch(corsProxy + encodeURIComponent(`https://games.roblox.com/v2/games/${game.id}/game-passes?Limit=25`));
-      const passData = await passesRes.json();
-      if (passData.data?.length) passes.push(...passData.data);
-    }
+    const passRes = await fetch(corsProxy + encodeURIComponent(`https://www.roblox.com/users/inventory/list-json?userId=${userId}&assetTypeId=34`));
+    const passes = await passRes.json();
     let html = `
       <div class="profile">
         <img src="${avatar}" width="120" height="120">
@@ -54,32 +48,32 @@ async function main() {
       <h2>🎟️ Gamepasses</h2>
       <div class="items">
     `;
-    if (passes.length) {
-      for (const p of passes) {
+    if (passes.Data && passes.Data.Items && passes.Data.Items.length) {
+      for (const p of passes.Data.Items) {
         html += `
           <div class="item">
-            <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${p.id}&width=150&height=150&format=png">
-            <p>${p.name}</p>
-            <a href="https://www.roblox.com/game-pass/${p.id}" target="_blank"><button>Buy</button></a>
+            <img src="${p.Thumbnail.Url}" alt="${p.Name}">
+            <p>${p.Name}</p>
+            <a href="https://www.roblox.com/game-pass/${p.Item.AssetId}" target="_blank"><button>Buy</button></a>
           </div>
         `;
       }
     } else html += "<p>No gamepasses found.</p>";
     html += "</div><h2>👕 Clothing</h2><div class='items'>";
-    if (clothing.data?.length) {
-      for (const item of clothing.data) {
+    if (clothing.Data && clothing.Data.Items && clothing.Data.Items.length) {
+      for (const item of clothing.Data.Items) {
         html += `
           <div class="item">
-            <img src="https://www.roblox.com/asset-thumbnail/image?assetId=${item.id}&width=150&height=150&format=png">
-            <p>${item.name}</p>
-            <a href="https://www.roblox.com/catalog/${item.id}" target="_blank"><button>Buy</button></a>
+            <img src="${item.Thumbnail.Url}" alt="${item.Name}">
+            <p>${item.Name}</p>
+            <a href="https://www.roblox.com/catalog/${item.Item.AssetId}" target="_blank"><button>Buy</button></a>
           </div>
         `;
       }
     } else html += "<p>No clothing found.</p>";
     html += "</div>";
     content.innerHTML = html;
-  } catch (e) {
+  } catch {
     content.innerHTML = `<p>⚠️ Failed to load data. Please try again later.</p>`;
   }
 }
